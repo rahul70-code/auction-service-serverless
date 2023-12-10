@@ -1,0 +1,74 @@
+service: candidate-service
+
+plugins:
+  - serverless-bundle
+  - serverless-pseudo-parameters
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  memorySize: 256
+  stage: dev
+  region: eu-west-1
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource:
+        - AuctionsTable
+
+resources:
+  Resources: 
+    AuctionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: AuctionsTable
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH 
+
+functions:
+  createAuction:
+    handler: api/createAuction.handler
+    memorySize: 128
+    description: Submit candidate information and starts interview process.
+    events:
+      - http: 
+          path: auction
+          method: post
+  getAuctions:
+    handler: api/getAuctions.handler
+    memorySize: 128
+    description: Submit candidate information and starts interview process.
+    events:
+      - http: 
+          path: auctions
+          method: GET
+
+  getAuction:
+    handler: api/getAuction.handler
+    memorySize: 128
+    description: Submit candidate information and starts interview process.
+    events:
+      - http: 
+          path: /auction/{id}
+          method: GET
+  placeBid:
+    handler: api/placeBid.handler
+    memorySize: 128
+    description: Submit candidate information and starts interview process.
+    events:
+      - http: 
+          path: /auction/{id}/bid
+          method: PATCH
+
+custom:
+  bundle:
+    linting: false

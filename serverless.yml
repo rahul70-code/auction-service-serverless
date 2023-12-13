@@ -1,4 +1,4 @@
-service: candidate-service
+service: auction-service
 
 plugins:
   - serverless-bundle
@@ -17,8 +17,10 @@ provider:
         - dynamodb:Scan
         - dynamodb:GetItem
         - dynamodb:UpdateItem
+        - dynamodb:Query
       Resource:
-        - AuctionsTable
+        - arn:aws:dynamodb:eu-west-1:991785523771:table/AuctionsTable
+        - arn:aws:dynamodb:eu-west-1:991785523771:table/AuctionsTable/index/statusAndEndDate # for secondary index quering
 
 resources:
   Resources: 
@@ -30,10 +32,22 @@ resources:
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
+          - AttributeName: status
+            AttributeType: S
+          - AttributeName: endingAt
+            AttributeType: S
         KeySchema:
           - AttributeName: id
             KeyType: HASH 
-
+        GlobalSecondaryIndexes:
+          - IndexName: statusAndEndingAt
+            KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: endingAt
+              KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
 functions:
   createAuction:
     handler: api/createAuction.handler
@@ -43,6 +57,7 @@ functions:
       - http: 
           path: auction
           method: post
+          authorizer: ${self:custom.authorizer}
   getAuctions:
     handler: api/getAuctions.handler
     memorySize: 128
@@ -51,7 +66,7 @@ functions:
       - http: 
           path: auctions
           method: GET
-
+          authorizer: ${self:custom.authorizer}
   getAuction:
     handler: api/getAuction.handler
     memorySize: 128
@@ -60,6 +75,7 @@ functions:
       - http: 
           path: /auction/{id}
           method: GET
+          authorizer: ${self:custom.authorizer}
   placeBid:
     handler: api/placeBid.handler
     memorySize: 128
@@ -68,7 +84,15 @@ functions:
       - http: 
           path: /auction/{id}/bid
           method: PATCH
+          authorizer: ${self:custom.authorizer}
+  processAuctions:
+    handler: api/processAuctions.handler
+    memorySize: 128
+    description: Submit candidate information and starts interview process.
+    # events:
+    #   - schedule: rate(15 minute) 
 
 custom:
+  authorizer: "auth service ARN deployed on same AWS account"
   bundle:
     linting: false
